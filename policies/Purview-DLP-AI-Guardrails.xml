@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SecurityPolicy xmlns="http://schemas.microsoft.com/office/server/security/policy">
+  <Policy Name="Prevent-Data-Leakage-To-Public-AI" Infrastructure="MicrosoftPurviewDLP">
+    <Description>Detects and intercepts sensitive data transmission to unauthorized GenAI and public LLM endpoints.</Description>
+    
+    <TargetWorkloads>
+      <Workload Type="EndpointDevices" />
+      <Workload Type="NetworkEgressProxies" />
+    </TargetWorkloads>
+
+    <Rule Name="Block-Crypto-Key-Paste-To-AI" Severity="High">
+      <Conditions>
+        <ContentContainsSensitiveInformation>
+          <Match MinCount="1" Confidence="85">
+            <SensitiveInformationType Id="a5639b2b-da97-40da-9e32-2d6a546d1234" Name="Private-Encryption-Keys" />
+            <SensitiveInformationType Id="c7438c1a-fb88-42da-8d11-1a5a413f9999" Name="OpenSSH-Private-Headers" />
+          </Match>
+        </ContentContainsSensitiveInformation>
+        <NetworkDestinationMatches>
+          <Domain Pattern="*.openai.com" />
+          <Domain Pattern="*.claude.ai" />
+          <Domain Pattern="*.chatgpt.com" />
+          <Domain Pattern="*.deepseek.com" />
+        </NetworkDestinationMatches>
+      </Conditions>
+      <Actions>
+        <BlockAccess ActionType="RestrictEgress" />
+        <NotifyUser Message="Operational Block: Sending private cryptographic keys or infrastructure configurations to unmanaged AI systems violates policy SEC-POL-AI-2026-V1." />
+        <GenerateAlert centralSIEM="MicrosoftSentinel" Severity="Critical" />
+      </Actions>
+    </Rule>
+
+    <Rule Name="Block-Customer-PII-To-AI" Severity="Medium">
+      <Conditions>
+        <ContentContainsSensitiveInformation>
+          <Match MinCount="3" Confidence="90">
+            <SensitiveInformationType Id="SocialSecurityNumber" />
+            <SensitiveInformationType Id="CreditCardNumber" />
+          </Match>
+        </ContentContainsSensitiveInformation>
+        <NetworkDestinationCategory Type="UnsanctionedGenerativeAI" />
+      </Conditions>
+      <Actions>
+        <BlockAccess ActionType="RestrictEgress" />
+        <NotifyUser Message="Operational Block: Compliance guardrails intercepted unmasked customer PII bound for a public AI destination." />
+        <GenerateAlert centralSIEM="MicrosoftSentinel" Severity="High" />
+      </Actions>
+    </Rule>
+  </Policy>
+</SecurityPolicy>
